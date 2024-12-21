@@ -74,7 +74,7 @@ export const login = async(req, res)=>{
         _id:user._id,
         fullname:user.fullname,
         profilePicture:user.profilePicture,
-        username:newuser.username
+        username:user.username
     })
     } catch (error) {
         console.log('internal error at login controller', error.message)
