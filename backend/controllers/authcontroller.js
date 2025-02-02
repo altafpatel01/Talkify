@@ -3,54 +3,60 @@ import User from "../models/userModel.js";
 import { generateJWTToken } from '../utils/generateJWTtoken.js';
 
 export const signup = async (req, res) => {
-  try {
-    const { fullname, username, password, confirmPassword, gender } = req.body;
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: "Passwors doesn't match" });
-    }
-
-    const user = await User.findOne({ username });
-
-    if (user) {
-      return res.status(400).json({ error: " username already exist !" });
-    }
-
-    //hash password here
-    const salt = await bcrypt.genSalt(10);
-    const hashpassword = await bcrypt.hash(password, salt)
-    //profilepic here
-    // https://avatar.iran.liara.run/public/boy?username=[value]
-    // https://avatar.iran.liara.run/public/girl?username=[value]
-
-    const boyProfilePic =  `https://avatar.iran.liara.run/public/boy?username=${username}`
-    const girlProfilePic =  `https://avatar.iran.liara.run/public/girl?username=${username}`
-
-    const newuser = new User({
+    try {
+      const { fullname, username, password, confirmPassword, gender } = req.body;
+  
+      if (password !== confirmPassword) {
+        return res.status(400).json({ error: "Passwords don't match" });
+      }
+  
+      const existingUser = await User.findOne({ username });
+  
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists!" });
+      }
+  
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+  
+      // Profile picture URLs
+      const boyProfilePic = `https://avatar.iran.liara.run/public/boy?username=${username}`;
+      const girlProfilePic = `https://avatar.iran.liara.run/public/girl?username=${username}`;
+  
+      // Create new user
+      const newUser = new User({
         fullname,
         username,
-        password:hashpassword,
-        profilePicture: gender==="male"? boyProfilePic : girlProfilePic,
-        gender
-    })
-    await newuser.save()
-    if(newuser){
-        generateJWTToken(newuser._id,res)
+        password: hashedPassword,
+        profilePicture: gender === "male" ? boyProfilePic : girlProfilePic,
+        gender,
+      });
+  
+      await newUser.save();
+  
+      // Generate JWT token and set as cookie
+      generateJWTToken(newUser._id, res);
+  
+      // Respond with success
+      return res.status(201).json({
+        message: "Signup successful!",
+        user: {
+          _id: newUser._id,
+          fullname: newUser.fullname,
+          profilePicture: newUser.profilePicture,
+          username: newUser.username,
+        },
+      });
+    } catch (error) {
+      console.error("Internal error at signup controller:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        details: error.message,
+      });
     }
-    res.status(201).json({
-        _id:newuser._id,
-        fullname:newuser.fullname,
-        profilePicture:newuser.profilePicture,
-        username:newuser.username
-    })
-  } catch (error) {
-    console.log('internal error at signup controller', error.message)
-    res.status(500).json({
-        error:error.message,
-        message:'internal server error at signup controller'
-    })
-  }
-};
+  };
+  
 
 export const login = async(req, res)=>{
     try {
@@ -62,19 +68,23 @@ export const login = async(req, res)=>{
         })
     }
 
-    const isPasswordCorrect = bcrypt.compare(password, user.password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if(!isPasswordCorrect){
         return res.status(400).json({
-            error:"username or password is uncorrect"
+            error:"username or password is incorrect"
         })
     }
 
     generateJWTToken(user._id , res);
     res.status(201).json({
-        _id:user._id,
-        fullname:user.fullname,
-        profilePicture:user.profilePicture,
-        username:user.username
+        message:'login successful',
+        user:{
+            _id:user._id,
+            fullname:user.fullname,
+            profilePicture:user.profilePicture,
+            username:user.username
+        }
+      
     })
     } catch (error) {
         console.log('internal error at login controller', error.message)
